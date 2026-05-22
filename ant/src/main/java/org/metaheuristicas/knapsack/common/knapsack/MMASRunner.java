@@ -259,7 +259,7 @@ public final class MMASRunner {
                 Solucao inicial = construirSolucaoGulosaInicial(entry.getValue());
                 writer.write(String.format(
                         Locale.US,
-                        "%s,%d,%d,%d,%d,%d,%s",
+                        "%s,%d,%d,%d,%d,%s",
                         toCsvField(Path.of(entry.getKey()).toAbsolutePath().toString()),
                         entry.getValue().capacidade,
                         entry.getValue().itens.length,
