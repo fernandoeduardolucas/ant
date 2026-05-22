@@ -146,7 +146,7 @@ public final class MMASRunner {
             executarExperimentosParalelos(tasks, paralelismo, writer, totalRuns, melhorPorInstancia);
         }
 
-        escreverRelatorioDetalhado(detailedOutput, melhorPorInstancia);
+        escreverRelatorioDetalhado(detailedOutput, melhorPorInstancia, paralelismo);
         System.out.println("Experiências concluídas. CSV: " + output);
         System.out.println("Relatório detalhado: " + detailedOutput);
         System.out.println("Relatório de soluções iniciais: " + initialOutput);
@@ -212,7 +212,8 @@ public final class MMASRunner {
 
     private static void escreverRelatorioDetalhado(
             Path detailedOutput,
-            Map<String, ExperimentResult> melhorPorInstancia
+            Map<String, ExperimentResult> melhorPorInstancia,
+            int paralelismo
     ) throws IOException {
         List<ExperimentResult> resultadosOrdenados = melhorPorInstancia
                 .values()
@@ -221,18 +222,19 @@ public final class MMASRunner {
                 .toList();
 
         try (BufferedWriter writer = Files.newBufferedWriter(detailedOutput)) {
-            writer.write("file,capacity,items,best_value,total_weight,selected_item_indices");
+            writer.write("file,capacity,items,best_value,total_weight,paraleleismo,selected_item_indices");
             writer.newLine();
 
             for (ExperimentResult resultado : resultadosOrdenados) {
                 writer.write(String.format(
                         Locale.US,
-                        "%s,%d,%d,%d,%d,%s",
+                        "%s,%d,%d,%d,%d,%d,%s",
                         toCsvField(Path.of(resultado.instanciaPath()).toAbsolutePath().toString()),
                         resultado.capacidade(),
                         resultado.totalItens(),
                         resultado.valorTotal(),
                         resultado.pesoTotal(),
+                        paralelismo,
                         toCsvField(resultado.indicesEscolhidos())
                 ));
                 writer.newLine();
@@ -257,7 +259,7 @@ public final class MMASRunner {
                 Solucao inicial = construirSolucaoGulosaInicial(entry.getValue());
                 writer.write(String.format(
                         Locale.US,
-                        "%s,%d,%d,%d,%d,%s",
+                        "%s,%d,%d,%d,%d,%d,%s",
                         toCsvField(Path.of(entry.getKey()).toAbsolutePath().toString()),
                         entry.getValue().capacidade,
                         entry.getValue().itens.length,
