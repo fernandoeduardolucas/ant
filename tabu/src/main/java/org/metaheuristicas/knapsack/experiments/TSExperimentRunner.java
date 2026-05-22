@@ -71,39 +71,50 @@ public final class TSExperimentRunner {
                 totalRuns,
                 paralelismo);
 
-        List<ExperimentTask> tasks = new ArrayList<>(totalRuns);
-        for (String instanciaPath : instancias) {
-            Instancia instancia = TSKnapsack.carregarInstancia(Path.of(instanciaPath));
+        try (BufferedWriter writer = Files.newBufferedWriter(output)) {
+            writer.write(
+                    "instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms,grid_wallclock_ms");
+            writer.newLine();
 
-            for (int iters : itersList) {
-                for (int tenureFlip : tenureFlips) {
-                    for (int tenureSwap : tenureSwaps) {
-                        for (int stall : stalls) {
-                            for (double diversify : diversifies) {
-                                for (long seed : seeds) {
-                                    tasks.add(new ExperimentTask(
-                                            instanciaPath,
-                                            instancia,
-                                            iters,
-                                            tenureFlip,
-                                            tenureSwap,
-                                            stall,
-                                            diversify,
-                                            seed));
+            int[] totalConcluido = {0}; // usar array para passar por referência
+
+            for (String instanciaPath : instancias) {
+                Instancia instancia = TSKnapsack.carregarInstancia(Path.of(instanciaPath));
+                List<ExperimentTask> tasks = new ArrayList<>();
+
+                for (int iters : itersList) {
+                    for (int tenureFlip : tenureFlips) {
+                        for (int tenureSwap : tenureSwaps) {
+                            for (int stall : stalls) {
+                                for (double diversify : diversifies) {
+                                    for (long seed : seeds) {
+                                        tasks.add(new ExperimentTask(
+                                                instanciaPath,
+                                                instancia,
+                                                iters,
+                                                tenureFlip,
+                                                tenureSwap,
+                                                stall,
+                                                diversify,
+                                                seed));
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                // Medir o tempo real de todas as combinações para esta instância em paralelo
+                Instant inicioGrid = Instant.now();
+                List<ExperimentResult> resultados = executarExperimentosParalelos(tasks, paralelismo, totalRuns, totalConcluido);
+                long gridWallclockMs = Duration.between(inicioGrid, Instant.now()).toMillis();
+
+                // Escrever os resultados no CSV anexando o tempo wall-clock
+                for (ExperimentResult res : resultados) {
+                    writer.write(res.csvLine() + "," + gridWallclockMs);
+                    writer.newLine();
+                }
             }
-        }
-
-        try (BufferedWriter writer = Files.newBufferedWriter(output)) {
-            writer.write(
-                    "instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms");
-            writer.newLine();
-
-            executarExperimentosParalelos(tasks, paralelismo, writer, totalRuns);
         }
 
         System.out.println("Experiências concluídas. CSV: " + output);
@@ -111,19 +122,21 @@ public final class TSExperimentRunner {
         TSReportGenerator.gerarRelatorio(output);
     }
 
-    private static void executarExperimentosParalelos(
+    private static List<ExperimentResult> executarExperimentosParalelos(
             List<ExperimentTask> tasks,
             int paralelismo,
-            BufferedWriter writer,
-            int totalRuns) throws IOException, InterruptedException {
+            int totalRuns,
+            int[] totalConcluido) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(paralelismo);
         CompletionService<ExperimentResult> completion = new ExecutorCompletionService<>(executor);
+        List<ExperimentResult> resultados = new ArrayList<>();
+
         try {
             for (ExperimentTask task : tasks) {
                 completion.submit(task::execute);
             }
 
-            for (int concluido = 1; concluido <= tasks.size(); concluido++) {
+            for (int i = 0; i < tasks.size(); i++) {
                 ExperimentResult resultado;
                 try {
                     resultado = completion.take().get();
@@ -131,12 +144,12 @@ public final class TSExperimentRunner {
                     throw new IllegalStateException("Falha ao executar configuração Tabu Search", e.getCause());
                 }
 
-                writer.write(resultado.csvLine());
-                writer.newLine();
+                resultados.add(resultado);
+                totalConcluido[0]++;
 
                 System.out.printf(
                         "[%d/%d] %s | it=%d tFlip=%d tSwap=%d stall=%d div=%.2f seed=%d => valor=%d, %d ms%n",
-                        concluido,
+                        totalConcluido[0],
                         totalRuns,
                         resultado.instanciaPath(),
                         resultado.iters(),
@@ -151,6 +164,7 @@ public final class TSExperimentRunner {
         } finally {
             executor.shutdownNow();
         }
+        return resultados;
     }
 
     private static Properties carregarProperties(Path path) throws IOException {
