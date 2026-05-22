@@ -222,7 +222,7 @@ public final class MMASRunner {
                 .toList();
 
         try (BufferedWriter writer = Files.newBufferedWriter(detailedOutput)) {
-            writer.write("file,capacity,items,best_value,total_weight,paraleleismo,selected_item_indices");
+            writer.write("file,capacity,items,best_value,total_weight,parallelism,selected_item_indices");
             writer.newLine();
 
             for (ExperimentResult resultado : resultadosOrdenados) {
