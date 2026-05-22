@@ -150,3 +150,29 @@ Abaixo, para cada variável, mostro a média de `best_value`, desvio-padrão, ga
 
 - `mmas.saida.csv=results/ant/mmas-grid-results.csv`
 - `mmas.saida.relatorio=results/ant/mmas-detailed-results.csv`
+
+## 9) Paralelismo no projeto Ant (MMAS)
+
+- Esta análise de paralelismo está ancorada no ficheiro de melhores por instância `results/ant/mmas-detailed-results.csv` (base para observar estabilidade de qualidade por instância) e na grelha completa `results/ant/mmas-grid-results.csv` (base para custo total de campanha).
+- O fluxo atual de execução está **sequencial por combinação da grelha**: cada configuração é corrida e gravada em CSV antes de passar à próxima.
+- A estrutura do problema, no entanto, permite paralelismo em dois níveis:
+  1. **Entre configurações da grelha** (cada combinação de parâmetros é independente).
+  2. **Entre formigas no mesmo ciclo** (cada construção de solução pode ser feita em paralelo, com sincronização apenas na atualização global de feromona).
+
+### Estratégia recomendada
+
+- **Fase 1 (baixo risco):** paralelizar apenas por configuração da grelha usando `ExecutorService` com `FixedThreadPool`, mantendo cada execução MMAS interna sequencial.
+- **Fase 2 (ganho adicional):** paralelizar a construção das soluções das formigas dentro de cada ciclo e aplicar barreira para atualização única de feromona.
+- **Fase 3 (robustez):** garantir escrita thread-safe do CSV (buffer por thread + flush ordenado, ou fila de eventos de saída).
+
+### Cuidados técnicos
+
+- Usar **seeds determinísticas por tarefa** para manter reprodutibilidade em ambiente paralelo.
+- Evitar partilha não sincronizada de estruturas mutáveis (`tau`, melhor global, contadores de estagnação).
+- Medir speedup com tamanhos de pool diferentes (2, 4, 8 threads) e reportar eficiência `speedup/threads`.
+
+### Expectativa de impacto
+
+- Como cada execução individual é muito curta (média ~0.56 ms), o maior ganho de paralelismo tende a aparecer em **lotes grandes** (varrimento completo da grelha), reduzindo tempo total de campanha.
+- O paralelismo interno por formiga pode trazer benefício adicional, mas com menor retorno relativo se o overhead de sincronização superar o tempo de construção local.
+
