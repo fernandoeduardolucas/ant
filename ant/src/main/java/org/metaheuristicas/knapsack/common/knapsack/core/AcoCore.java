@@ -3,9 +3,7 @@ package org.metaheuristicas.knapsack.common.knapsack.core;
 import org.metaheuristicas.knapsack.common.knapsack.model.Item;
 import org.metaheuristicas.knapsack.common.knapsack.model.Solucao;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 
 /**
@@ -53,6 +51,10 @@ public class AcoCore {
     private double tauMin = 1e-6;
     /** Limite superior de τ_i no MMAS. */
     private double tauMax = 1e6;
+    /** Ordem reutilizável para evitar alocações na construção das soluções. */
+    private final int[] ordemBuffer;
+    /** Razão valor/peso pré-calculada por item (evita divisões repetidas). */
+    private final double[] razaoValorPeso;
 
     public AcoCore(
             Item[] itens,
@@ -76,6 +78,8 @@ public class AcoCore {
         this.q = q;
         this.limiteSemMelhoria = limiteSemMelhoria;
         this.rng = new Random(seed);
+        this.ordemBuffer = new int[itens.length];
+        this.razaoValorPeso = new double[itens.length];
 
         inicializarEstruturas();
     }
@@ -137,8 +141,10 @@ public class AcoCore {
 
         // Seção 2.2: heurística do KP é valor/peso.
         double maiorRazao = 0.0;
-        for (Item item : itens) {
-            maiorRazao = Math.max(maiorRazao, (double) item.valor / item.peso);
+        for (int i = 0; i < itens.length; i++) {
+            double razao = (double) itens[i].valor / itens[i].peso;
+            razaoValorPeso[i] = razao;
+            maiorRazao = Math.max(maiorRazao, razao);
         }
 
         if (maiorRazao == 0.0) {
@@ -146,9 +152,8 @@ public class AcoCore {
         }
 
         for (int i = 0; i < itens.length; i++) {
-            double razao = (double) itens[i].valor / itens[i].peso;
             // Normalização para manter valores em escala estável.
-            eta[i] = razao / maiorRazao;
+            eta[i] = razaoValorPeso[i] / maiorRazao;
         }
 
         // Feromonas uniformes no início (estado sem preferência).
@@ -169,7 +174,7 @@ public class AcoCore {
         }
 
         // Ordenação por eficiência econômica: maior valor por unidade de peso primeiro.
-        Arrays.sort(ordem, (a, b) -> Double.compare((double) itens[b].valor / itens[b].peso, (double) itens[a].valor / itens[a].peso));
+        Arrays.sort(ordem, (a, b) -> Double.compare(razaoValorPeso[b], razaoValorPeso[a]));
 
         boolean[] escolhidos = new boolean[itens.length];
         long pesoAtual = 0;
@@ -194,14 +199,12 @@ public class AcoCore {
         long pesoAtual = 0;
         long valorAtual = 0;
 
-        List<Integer> ordemItens = new ArrayList<>(itens.length);
         for (int i = 0; i < itens.length; i++) {
-            ordemItens.add(i);
+            ordemBuffer[i] = i;
         }
-        // Diversificação: embaralhar a ordem de visita dos itens aumenta a exploração estocástica.
-        java.util.Collections.shuffle(ordemItens, rng);
+        embaralharOrdemBuffer();
 
-        for (int indice : ordemItens) {
+        for (int indice : ordemBuffer) {
             long capacidadeResidual = capacidade - pesoAtual;
             // Gestão de viabilidade (seção 2.3): se não cabe, exclui automaticamente.
             if (itens[indice].peso > capacidadeResidual) {
@@ -211,8 +214,8 @@ public class AcoCore {
             // Regra binária de decisão (seção 2.2):
             // P(x_i = 1) = (tau_i^alpha * eta_i^beta) / (tau_i^alpha * eta_i^beta + (1-tau_i)^alpha)
             double tauNormalizado = normalizarTauParaProbabilidade(tau[indice]);
-            double incluir = Math.pow(tauNormalizado, alpha) * Math.pow(eta[indice], beta);
-            double excluir = Math.pow(Math.max(1e-12, 1.0 - tauNormalizado), alpha);
+            double incluir = powFast(tauNormalizado, alpha) * powFast(eta[indice], beta);
+            double excluir = powFast(Math.max(1e-12, 1.0 - tauNormalizado), alpha);
             // Probabilidade Bernoulli para a decisão binária de incluir o item i.
             double probIncluir = incluir / Math.max(1e-12, incluir + excluir);
 
@@ -225,6 +228,29 @@ public class AcoCore {
         }
 
         return new Solucao(escolhidos, valorAtual, pesoAtual);
+    }
+
+    private void embaralharOrdemBuffer() {
+        // Fisher-Yates in-place: sem boxing e sem alocação por formiga.
+        for (int i = ordemBuffer.length - 1; i > 0; i--) {
+            int j = rng.nextInt(i + 1);
+            int tmp = ordemBuffer[i];
+            ordemBuffer[i] = ordemBuffer[j];
+            ordemBuffer[j] = tmp;
+        }
+    }
+
+    private double powFast(double base, double expoente) {
+        if (expoente == 1.0) {
+            return base;
+        }
+        if (expoente == 2.0) {
+            return base * base;
+        }
+        if (expoente == 3.0) {
+            return base * base * base;
+        }
+        return Math.pow(base, expoente);
     }
 
     private double normalizarTauParaProbabilidade(double tauValue) {
