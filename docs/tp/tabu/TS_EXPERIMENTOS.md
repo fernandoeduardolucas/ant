@@ -62,3 +62,10 @@ java -cp target/classes org.metaheuristicas.knapsack.TSKnapsack docs/inst_test/i
 - `best_value`
 - `total_weight`
 - `elapsed_ms`
+
+## Execução Mac
+- /Users/joaosoares/.m2/wrapper/dists/apache-maven-3.9.11/a2d47e15/bin/mvn clean compile
+- java -cp target/classes org.metaheuristicas.knapsack.experiments.TSExperimentRunner
+-- Instância em concreto
+- /Users/joaosoares/.m2/wrapper/dists/apache-maven-3.9.11/a2d47e15/bin/mvn clean compile)
+

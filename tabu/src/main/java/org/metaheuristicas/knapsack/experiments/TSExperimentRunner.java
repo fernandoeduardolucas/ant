@@ -25,8 +25,11 @@ import java.util.stream.Stream;
 /**
  * Runner de experiências do Tabu Search para o problema da mochila 0/1.
  *
- * <p>Lê um ficheiro de propriedades (por omissão, {@code src/main/resources/ts-experiments.properties})
- * e executa uma grelha de combinações de parâmetros para permitir análise de performance.
+ * <p>
+ * Lê um ficheiro de propriedades (por omissão,
+ * {@code src/main/resources/ts-experiments.properties})
+ * e executa uma grelha de combinações de parâmetros para permitir análise de
+ * performance.
  */
 public final class TSExperimentRunner {
 
@@ -49,8 +52,7 @@ public final class TSExperimentRunner {
         List<Double> diversifies = parseDoubleList(p, "ts.diversify.strength", 0.2);
         List<Long> seeds = parseLongList(p, "ts.seed", 12345L);
         int paralelismo = Integer.parseInt(
-                p.getProperty("ts.parallelism", String.valueOf(Runtime.getRuntime().availableProcessors()))
-        );
+                p.getProperty("ts.parallelism", String.valueOf(Runtime.getRuntime().availableProcessors())));
         if (paralelismo <= 0) {
             throw new IllegalArgumentException("ts.parallelism deve ser > 0");
         }
@@ -67,8 +69,7 @@ public final class TSExperimentRunner {
         System.out.printf(
                 "Iniciando experiências Tabu Search (%d execuções, paralelismo=%d)...%n",
                 totalRuns,
-                paralelismo
-        );
+                paralelismo);
 
         List<ExperimentTask> tasks = new ArrayList<>(totalRuns);
         for (String instanciaPath : instancias) {
@@ -88,8 +89,7 @@ public final class TSExperimentRunner {
                                             tenureSwap,
                                             stall,
                                             diversify,
-                                            seed
-                                    ));
+                                            seed));
                                 }
                             }
                         }
@@ -99,21 +99,23 @@ public final class TSExperimentRunner {
         }
 
         try (BufferedWriter writer = Files.newBufferedWriter(output)) {
-            writer.write("instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms");
+            writer.write(
+                    "instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms");
             writer.newLine();
 
             executarExperimentosParalelos(tasks, paralelismo, writer, totalRuns);
         }
 
         System.out.println("Experiências concluídas. CSV: " + output);
+        System.out.println("A gerar relatório em Markdown...");
+        TSReportGenerator.gerarRelatorio(output);
     }
 
     private static void executarExperimentosParalelos(
             List<ExperimentTask> tasks,
             int paralelismo,
             BufferedWriter writer,
-            int totalRuns
-    ) throws IOException, InterruptedException {
+            int totalRuns) throws IOException, InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(paralelismo);
         CompletionService<ExperimentResult> completion = new ExecutorCompletionService<>(executor);
         try {
@@ -144,8 +146,7 @@ public final class TSExperimentRunner {
                         resultado.diversify(),
                         resultado.seed(),
                         resultado.valorTotal(),
-                        resultado.elapsedMs()
-                );
+                        resultado.elapsedMs());
             }
         } finally {
             executor.shutdownNow();
@@ -245,8 +246,7 @@ public final class TSExperimentRunner {
             int tenureSwap,
             int stall,
             double diversify,
-            long seed
-    ) {
+            long seed) {
         ExperimentResult execute() {
             Instant inicio = Instant.now();
 
@@ -258,8 +258,7 @@ public final class TSExperimentRunner {
                     tenureSwap,
                     stall,
                     diversify,
-                    seed
-            );
+                    seed);
 
             Solucao melhor = solver.resolver();
             long elapsedMs = Duration.between(inicio, Instant.now()).toMillis();
@@ -273,8 +272,7 @@ public final class TSExperimentRunner {
                     seed,
                     melhor.valorTotal,
                     melhor.pesoTotal,
-                    elapsedMs
-            );
+                    elapsedMs);
         }
     }
 
@@ -288,8 +286,7 @@ public final class TSExperimentRunner {
             long seed,
             long valorTotal,
             long pesoTotal,
-            long elapsedMs
-    ) {
+            long elapsedMs) {
         String csvLine() {
             return String.format(
                     Locale.US,
@@ -303,8 +300,7 @@ public final class TSExperimentRunner {
                     seed,
                     valorTotal,
                     pesoTotal,
-                    elapsedMs
-            );
+                    elapsedMs);
         }
     }
 }

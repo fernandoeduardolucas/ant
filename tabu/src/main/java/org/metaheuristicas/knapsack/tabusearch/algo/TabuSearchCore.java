@@ -9,19 +9,20 @@ import java.util.Random;
 /**
  * Núcleo do Tabu Search para o Problema da Mochila 0/1.
  *
- * <p>Implementação otimizada com:
+ * <p>
+ * Implementação otimizada com:
  * <ul>
- *   <li><b>Vizinhança híbrida</b>: movimentos 1-flip (adicionar/remover item)
- *       e swap (trocar item dentro por item fora).</li>
- *   <li><b>Lista tabu</b>: memória de curto prazo que impede a revisita
- *       de movimentos recentes, com tenures separados para flip e swap.</li>
- *   <li><b>Critério de aspiração</b>: um movimento tabu é aceite se
- *       produzir solução melhor que a melhor global conhecida.</li>
- *   <li><b>Diversificação por frequência</b>: quando estagna, penaliza
- *       itens frequentemente manipulados para forçar exploração de novas
- *       regiões do espaço de soluções.</li>
- *   <li><b>Reinicialização adaptativa</b>: após muitas iterações sem
- *       melhoria, reinicia a partir de uma solução gulosa perturbada.</li>
+ * <li><b>Vizinhança híbrida</b>: movimentos 1-flip (adicionar/remover item)
+ * e swap (trocar item dentro por item fora).</li>
+ * <li><b>Lista tabu</b>: memória de curto prazo que impede a revisita
+ * de movimentos recentes, com tenures separados para flip e swap.</li>
+ * <li><b>Critério de aspiração</b>: um movimento tabu é aceite se
+ * produzir solução melhor que a melhor global conhecida.</li>
+ * <li><b>Diversificação por frequência</b>: quando estagna, penaliza
+ * itens frequentemente manipulados para forçar exploração de novas
+ * regiões do espaço de soluções.</li>
+ * <li><b>Reinicialização adaptativa</b>: após muitas iterações sem
+ * melhoria, reinicia a partir de uma solução gulosa perturbada.</li>
  * </ul>
  */
 public class TabuSearchCore {
@@ -61,8 +62,7 @@ public class TabuSearchCore {
             int tenureSwap,
             int limiteSemMelhoria,
             double diversifyStrength,
-            long seed
-    ) {
+            long seed) {
         this.itens = itens;
         this.capacidade = capacidade;
         this.iteracoes = iteracoes;
@@ -101,7 +101,7 @@ public class TabuSearchCore {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  Inicialização
+    // Inicialização
     // ─────────────────────────────────────────────────────────────────────
 
     private void inicializar() {
@@ -127,12 +127,9 @@ public class TabuSearchCore {
             ordem[i] = i;
         }
 
-        Arrays.sort(ordem, (a, b) ->
-                Double.compare(
-                        (double) itens[b].valor / itens[b].peso,
-                        (double) itens[a].valor / itens[a].peso
-                )
-        );
+        Arrays.sort(ordem, (a, b) -> Double.compare(
+                (double) itens[b].valor / itens[b].peso,
+                (double) itens[a].valor / itens[a].peso));
 
         solucaoAtual = new boolean[n];
         pesoAtual = 0;
@@ -148,7 +145,7 @@ public class TabuSearchCore {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  Exploração da vizinhança (flip + swap)
+    // Exploração da vizinhança (flip + swap)
     // ─────────────────────────────────────────────────────────────────────
 
     /**
@@ -206,11 +203,14 @@ public class TabuSearchCore {
 
         // ── Movimentos swap (trocar item dentro por item fora) ──
         for (int i = 0; i < n; i++) {
-            if (!solucaoAtual[i]) continue; // i deve estar dentro
+            if (!solucaoAtual[i])
+                continue; // i deve estar dentro
 
             for (int j = 0; j < n; j++) {
-                if (solucaoAtual[j]) continue; // j deve estar fora
-                if (i == j) continue;
+                if (solucaoAtual[j])
+                    continue; // j deve estar fora
+                if (i == j)
+                    continue;
 
                 long novoPeso = pesoAtual - itens[i].peso + itens[j].peso;
                 if (novoPeso > capacidade) {
@@ -245,10 +245,10 @@ public class TabuSearchCore {
 
         // ── Aplicar o melhor movimento ──
         if (melhorTipo == 0) {
-            // Flip
+            // Flip - inverter decisão (incluir/excluir)
             aplicarFlip(melhorI, iter);
         } else {
-            // Swap
+            // Swap - trocar item dentro por item fora
             aplicarSwap(melhorI, melhorJ, iter);
         }
 
@@ -265,12 +265,12 @@ public class TabuSearchCore {
 
     private void aplicarFlip(int i, int iter) {
         if (solucaoAtual[i]) {
-            // Remover
+            // Remover - retirar decisão de incluir
             solucaoAtual[i] = false;
             valorAtual -= itens[i].valor;
             pesoAtual -= itens[i].peso;
         } else {
-            // Adicionar
+            // Adicionar - retirar decisão de excluir
             solucaoAtual[i] = true;
             valorAtual += itens[i].valor;
             pesoAtual += itens[i].peso;
@@ -296,7 +296,7 @@ public class TabuSearchCore {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  Diversificação
+    // Diversificação
     // ─────────────────────────────────────────────────────────────────────
 
     /**
@@ -322,7 +322,8 @@ public class TabuSearchCore {
 
         // Tentar adicionar itens não selecionados (guloso com perturbação)
         Integer[] ordem = new Integer[n];
-        // Pré-calcular chaves de ordenação perturbadas (evita violar contrato do Comparator)
+        // Pré-calcular chaves de ordenação perturbadas (evita violar contrato do
+        // Comparator)
         double[] chaveOrdenacao = new double[n];
         for (int i = 0; i < n; i++) {
             ordem[i] = i;
