@@ -1,0 +1,2 @@
+instance,optimal_value,initial_value,best_value,gap_percent,total_weight,threads,best_configuration,stop_generation,elapsed_s
+n_1000_1,9999946233,9993825456,9997825906,0.021203,9997820761,1,pop=4 gen=1 cRate=0.8500 mRate=0.0050 elite=1 tourn=2 stag=1 seed=1 threads=1,1,0.0159

@@ -638,7 +638,7 @@ public final class GeneticKnapsack {
             }
         }
 
-        Path outputCsv = Paths.get(propertyValue(properties, "output.csv", "genetic.output.csv", "results/genetic/ag_resultados.csv").trim());
+        Path outputCsv = resolveProjectPath(propertyValue(properties, "output.csv", "genetic.output.csv", "results/genetic/ag_resultados.csv").trim());
         Path outputDir = outputCsv.toAbsolutePath().getParent();
         if (outputDir == null) {
             outputDir = Paths.get(".");
@@ -782,7 +782,9 @@ public final class GeneticKnapsack {
     private static List<Path> resolveConfiguredInstances(Properties properties) throws IOException {
         List<String> explicitInstances = parseStringList(properties, "genetic.instances");
         if (!explicitInstances.isEmpty()) {
-            return explicitInstances.stream().map(Paths::get).collect(Collectors.toList());
+            return explicitInstances.stream()
+                    .map(GeneticKnapsack::resolveProjectPath)
+                    .collect(Collectors.toList());
         }
 
         String instancesDir = properties.getProperty("genetic.instances.dir", "").trim();
@@ -790,7 +792,7 @@ public final class GeneticKnapsack {
             throw new IllegalArgumentException("Defina genetic.instances ou genetic.instances.dir");
         }
 
-        Path base = Paths.get(instancesDir);
+        Path base = resolveProjectPath(instancesDir);
         if (!Files.isDirectory(base)) {
             throw new IllegalArgumentException("Diretoria de instâncias não existe: " + base);
         }
@@ -820,6 +822,19 @@ public final class GeneticKnapsack {
             }
         }
         return parsed;
+    }
+
+    private static Path resolveProjectPath(String configuredPath) {
+        Path path = Paths.get(configuredPath.trim());
+        if (path.isAbsolute()) {
+            return path;
+        }
+
+        Path repositoryRoot = Config.findRepositoryRoot(Paths.get("docs", "inst_test", "instancias"));
+        if (repositoryRoot != null) {
+            return repositoryRoot.resolve(path).normalize();
+        }
+        return path;
     }
 
     private static String propertyValue(Properties properties, String key, String legacyKey, String fallback) {
