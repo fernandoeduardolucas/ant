@@ -254,13 +254,7 @@ public class AcoCore {
     }
 
     private double normalizarTauParaProbabilidade(double tauValue) {
-        // Converte tau do intervalo dinâmico [tauMin, tauMax] para ~[0,1].
-        // Isso é necessário porque a regra binária usa termo (1 - tau_i),
-        // que só faz sentido num espaço probabilístico normalizado.
-        double denominador = Math.max(1e-12, tauMax - tauMin);
-        double normalizado = (tauValue - tauMin) / denominador;
-        // Clamping numérico: evita exatamente 0 e 1 para não "congelar" probabilidade.
-        return Math.min(1.0 - 1e-12, Math.max(1e-12, normalizado));
+        return Math.min(1.0 - 1e-12, Math.max(1e-12, tauValue));
     }
 
     private Solucao melhorarComBuscaLocal1Flip(Solucao base) {
@@ -304,29 +298,8 @@ public class AcoCore {
     }
 
     private void atualizarLimitesFeromonio(Solucao melhor) {
-        // Fórmulas MMAS baseadas no melhor valor conhecido z*:
-        // tauMax = 1 / (rho * z*)
-        // tauMin = tauMax / (2n)
-        //
-        // Interpretação:
-        // - tauMax limita super-reforço (evita convergência prematura extrema);
-        // - tauMin preserva probabilidade mínima de exploração.
-        // Seção MMAS: tauMax = 1/(rho*z*), tauMin = tauMax/(2n)
-        double z = Math.max(1.0, melhor.valorTotal);
-        tauMax = 1.0 / (rho * z);
-        tauMin = tauMax / (2.0 * itens.length);
-
-        if (tauMin <= 0.0 || !Double.isFinite(tauMin)) {
-            tauMin = 1e-6;
-        }
-
-        if (tauMax <= tauMin || !Double.isFinite(tauMax)) {
-            tauMax = tauMin * 1000.0;
-        }
-
-        // A regra binária de decisão usa (1 - tau_i), portanto mantém tau no intervalo (0,1).
-        tauMax = Math.min(0.999999, tauMax);
-        tauMin = Math.max(1e-6, Math.min(tauMin, tauMax / 2.0));
+        tauMax = 0.95;
+        tauMin = 0.05;
     }
 
     private void evaporarFeromonio() {
@@ -340,10 +313,8 @@ public class AcoCore {
     }
 
     private void depositarFeromonio(Solucao melhor) {
-        // Reforço elitista MMAS:
-        // somente itens presentes na melhor solução recebem depósito.
-        // depósito ~ 1/z* (neste desenho), para consolidar combinações promissoras.
-        double deposito = 1.0 / Math.max(1.0, melhor.valorTotal);
+
+        double deposito = q * rho;
         for (int i = 0; i < melhor.escolhidos.length; i++) {
             if (melhor.escolhidos[i]) {
                 tau[i] += deposito;
