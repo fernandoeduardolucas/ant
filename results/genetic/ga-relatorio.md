@@ -15,11 +15,20 @@ A tabela apresenta apenas resultados do Algoritmo Genetico e conserva, para cada
 
 | Instancia | Solucao otima (SO) | Solucao inicial | Solucao encontrada (SE) | % desvio | Threads | Tempo computacional (s) |
 |-----------|--------------------|-----------------|-------------------------|----------|---------|-------------------------|
-| n_1000_1 | 9999946233 | 9993825456 | 9997825906 | 0.021203% | 1 | 0.0159 |
+| n_1000_1 | 9999946233 | 9999826041 | 9999827305 | 0.001189% | 32 | 0.8043 |
+| n_1000_2 | 9999964987 | 9999381368 | 9999858067 | 0.001069% | 32 | 0.8447 |
+| n_1000_3 | 9999229281 | 9999228246 | 9999229015 | 0.000003% | 32 | 0.8234 |
+| n_1000_4 | 9999239905 | 9999238249 | 9999239704 | 0.000002% | 32 | 0.8456 |
+| n_1000_5 | 9999251796 | 9999248436 | 9999251457 | 0.000003% | 32 | 0.8726 |
+| n_1000_6 | 9996100344 | 9996100280 | 9996100341 | 0.000000% | 32 | 0.3168 |
+| n_1000_7 | 9996105266 | 9781261391 | 9996105253 | 0.000000% | 32 | 0.4762 |
+| n_1000_8 | 9996111502 | 9839861382 | 9996111488 | 0.000000% | 32 | 0.3324 |
+| n_1000_9 | 9980488131 | 9980482882 | 9980487736 | 0.000004% | 32 | 0.7875 |
+| n_1000_10 | 9980507700 | 9980497961 | 9980506760 | 0.000009% | 32 | 0.8531 |
 
 ## 3. Interpretacao dos resultados
 
-- **Desvio medio geral (GAP):** 0.0212%
-- **Otimos alcancados (ou praticamente iguais ao otimo):** 0 de 1 instancias analisadas.
+- **Desvio medio geral (GAP):** 0.0002%
+- **Otimos alcancados (ou praticamente iguais ao otimo):** 8 de 10 instancias analisadas.
 
 A comparacao entre a solucao inicial e a solucao encontrada permite observar o contributo do processo evolutivo relativamente ao melhor individuo inicial. A comparacao com SO quantifica a qualidade final da solucao atraves do GAP, enquanto o tempo computacional permite avaliar o custo das configuracoes testadas.
