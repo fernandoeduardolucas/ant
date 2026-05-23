@@ -391,7 +391,7 @@ public final class MMASRunner2 {
 
     private record ExperimentResult(
             String instanciaPath,
-            int capacidade,
+            long capacidade,
             int totalItens,
             int ant,
             int iter,
