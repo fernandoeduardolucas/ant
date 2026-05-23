@@ -14,8 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -494,7 +492,7 @@ public final class GeneticKnapsack {
             KnapsackInstance instance = readInstance(file);
             System.out.println("  A processar: " + instance.name + "...");
 
-            Instant start = Instant.now();
+            long startNanos = System.nanoTime();
             GeneticResult result = geneticAlgorithm(
                     instance,
                     populationSize,
@@ -507,7 +505,8 @@ public final class GeneticKnapsack {
                     seed,
                     verbose
             );
-            double elapsedSeconds = Duration.between(start, Instant.now()).toNanos() / 1_000_000_000.0;
+            long endNanos = System.nanoTime();
+            double elapsedSeconds = (endNanos - startNanos) / 1_000_000_000.0;
 
             Long optimal = OPTIMAL_VALUES.get(instance.name);
             Long difference = optimal == null ? null : optimal - result.value;
@@ -538,6 +537,8 @@ public final class GeneticKnapsack {
                     seed,
                     1,
                     elapsedSeconds,
+                    startNanos,
+                    endNanos,
                     result.history
             );
             results.add(row);
@@ -564,18 +565,21 @@ public final class GeneticKnapsack {
         Path initialPath = outputDir.resolve("ga-initial-solutions.csv");
         Path detailedPath = outputDir.resolve("ga-detailed-results.csv");
         Path mdPath = outputDir.resolve("ga-relatorio.md");
+        Path reportCsvPath = outputDir.resolve("ga-relatorio.csv");
 
         // Escrita dos ficheiros solicitados
         writeGridCsv(gridPath, results);
         writeInitialSolutionsCsv(initialPath, results);
         updateDetailedCsv(detailedPath, results);
         generateMarkdownReport(mdPath, detailedPath);
+        generateFinalReportCsv(reportCsvPath, results);
 
         System.out.println("\n  Relatórios académicos atualizados/gerados:");
         System.out.println("  1. Grid:      " + gridPath);
         System.out.println("  2. Iniciais:  " + initialPath);
         System.out.println("  3. Detalhado: " + detailedPath);
-        System.out.println("  4. Relatório: " + mdPath + "\n");
+        System.out.println("  4. Relatório: " + mdPath);
+        System.out.println("  5. Relatório CSV: " + reportCsvPath + "\n");
     }
 
     /**
@@ -648,6 +652,7 @@ public final class GeneticKnapsack {
         Path initialPath = outputDir.resolve("ga-initial-solutions.csv");
         Path detailedPath = outputDir.resolve("ga-detailed-results.csv");
         Path mdPath = outputDir.resolve("ga-relatorio.md");
+        Path reportCsvPath = outputDir.resolve("ga-relatorio.csv");
 
         int totalRuns = instances.size()
                 * populations.size()
@@ -710,12 +715,14 @@ public final class GeneticKnapsack {
         writeInitialSolutionsCsv(initialPath, results);
         updateDetailedCsv(detailedPath, results);
         generateMarkdownReport(mdPath, detailedPath);
+        generateFinalReportCsv(reportCsvPath, results);
 
         System.out.println("Experiências AG concluídas.");
         System.out.println("  Grid:      " + gridPath);
         System.out.println("  Iniciais:  " + initialPath);
         System.out.println("  Detalhado: " + detailedPath);
         System.out.println("  Relatório: " + mdPath);
+        System.out.println("  Relatório CSV: " + reportCsvPath);
     }
 
     private static List<ResultRow> executeExperimentTasks(
@@ -885,7 +892,7 @@ public final class GeneticKnapsack {
             int parallelism
     ) {
         private ResultRow execute() {
-            Instant start = Instant.now();
+            long startNanos = System.nanoTime();
             GeneticResult result = geneticAlgorithm(
                     instance,
                     populationSize,
@@ -898,7 +905,8 @@ public final class GeneticKnapsack {
                     seed,
                     false
             );
-            double elapsedSeconds = Duration.between(start, Instant.now()).toNanos() / 1_000_000_000.0;
+            long endNanos = System.nanoTime();
+            double elapsedSeconds = (endNanos - startNanos) / 1_000_000_000.0;
 
             Long optimal = OPTIMAL_VALUES.get(instance.name);
             Long difference = optimal == null ? null : optimal - result.value;
@@ -928,6 +936,8 @@ public final class GeneticKnapsack {
                     seed,
                     parallelism,
                     elapsedSeconds,
+                    startNanos,
+                    endNanos,
                     result.history
             );
         }
@@ -1109,10 +1119,9 @@ public final class GeneticKnapsack {
                 String initial = parts[2];
                 String best = parts[3];
                 String gapStr = parts[4];
-                String threads = parts[6];
                 String tempo = parts[9];
 
-                resultsTable.add(String.format("| %s | %s | %s | %s | %s%% | %s | %s |", inst, opt, initial, best, gapStr, threads, tempo));
+                resultsTable.add(String.format("| %s | %s | %s | %s | %s%% | %s |", inst, opt, initial, best, gapStr, tempo));
 
                 if (!gapStr.isEmpty()) {
                     double gap = Double.parseDouble(gapStr);
@@ -1135,8 +1144,8 @@ public final class GeneticKnapsack {
 
             writer.write("## 2. Tabela final resumida\n\n");
             writer.write("A tabela apresenta apenas resultados do Algoritmo Genetico e conserva, para cada instancia, a melhor execucao encontrada na grelha de parametros.\n\n");
-            writer.write("| Instancia | Solucao otima (SO) | Solucao inicial | Solucao encontrada (SE) | % desvio | Threads | Tempo computacional (s) |\n");
-            writer.write("|-----------|--------------------|-----------------|-------------------------|----------|---------|-------------------------|\n");
+            writer.write("| Instancia | Solucao otima (SO) | Solucao inicial | Solucao encontrada (SE) | % de desvio em relacao a SO | Tempo computacional total (s) |\n");
+            writer.write("|-----------|--------------------|-----------------|-------------------------|-----------------------------|-------------------------------|\n");
             for (String row : resultsTable) {
                 writer.write(row + "\n");
             }
@@ -1145,7 +1154,44 @@ public final class GeneticKnapsack {
             writer.write("## 3. Interpretacao dos resultados\n\n");
             writer.write(String.format(Locale.US, "- **Desvio medio geral (GAP):** %.4f%%\n", avgGap));
             writer.write(String.format(Locale.US, "- **Otimos alcancados (ou praticamente iguais ao otimo):** %d de %d instancias analisadas.\n\n", countOptimalHit, countGaps));
-            writer.write("A comparacao entre a solucao inicial e a solucao encontrada permite observar o contributo do processo evolutivo relativamente ao melhor individuo inicial. A comparacao com SO quantifica a qualidade final da solucao atraves do GAP, enquanto o tempo computacional permite avaliar o custo das configuracoes testadas.\n");
+            writer.write("A comparacao entre a solucao inicial e a solucao encontrada permite observar o contributo do processo evolutivo relativamente ao melhor individuo inicial. A comparacao com SO quantifica a qualidade final da solucao atraves do GAP. O tempo computacional total corresponde ao tempo de relogio (wall-clock) para concluir cada instancia e nao ao somatorio dos tempos de execucao das threads.\n");
+        }
+    }
+
+    private static void generateFinalReportCsv(Path csvPath, List<ResultRow> results) throws IOException {
+        ensureDirectoryExists(csvPath);
+
+        try (BufferedWriter writer = Files.newBufferedWriter(csvPath, StandardCharsets.UTF_8)) {
+            writer.write("Instância,Solução ótima (SO),Solução inicial,Solução encontrada (SE),% de desvio em relação à SO,Tempo computacional total");
+            writer.newLine();
+
+            Map<String, ResultRow> bestByInstance = new LinkedHashMap<>();
+            Map<String, Long> startByInstance = new LinkedHashMap<>();
+            Map<String, Long> endByInstance = new LinkedHashMap<>();
+
+            for (ResultRow row : results) {
+                ResultRow currentBest = bestByInstance.get(row.instance);
+                if (currentBest == null || isBetterSummaryRow(row, currentBest)) {
+                    bestByInstance.put(row.instance, row);
+                }
+                startByInstance.merge(row.instance, row.startedAtNanos, Math::min);
+                endByInstance.merge(row.instance, row.finishedAtNanos, Math::max);
+            }
+
+            List<ResultRow> orderedBest = new ArrayList<>(bestByInstance.values());
+            orderedBest.sort(Comparator.comparing(row -> row.instance, GeneticKnapsack::naturalCompare));
+            for (ResultRow row : orderedBest) {
+                double totalByInstance = (endByInstance.get(row.instance) - startByInstance.get(row.instance)) / 1_000_000_000.0;
+                writer.write(String.join(",",
+                        row.instance,
+                        row.optimal == null ? "" : row.optimal.toString(),
+                        Long.toString(row.initialValue),
+                        Long.toString(row.foundValue),
+                        row.deviationPercent == null ? "" : String.format(Locale.US, "%.6f%%", row.deviationPercent),
+                        String.format(Locale.US, "%.4f", totalByInstance)
+                ));
+                writer.newLine();
+            }
         }
     }
 
@@ -1523,6 +1569,8 @@ public final class GeneticKnapsack {
         private final long seed;
         private final int parallelism;
         private final double elapsedSeconds;
+        private final long startedAtNanos;
+        private final long finishedAtNanos;
         private final List<GenerationRecord> history;
 
         private ResultRow(
@@ -1549,6 +1597,8 @@ public final class GeneticKnapsack {
                 long seed,
                 int parallelism,
                 double elapsedSeconds,
+                long startedAtNanos,
+                long finishedAtNanos,
                 List<GenerationRecord> history
         ) {
             this.instance = instance;
@@ -1574,6 +1624,8 @@ public final class GeneticKnapsack {
             this.seed = seed;
             this.parallelism = parallelism;
             this.elapsedSeconds = elapsedSeconds;
+            this.startedAtNanos = startedAtNanos;
+            this.finishedAtNanos = finishedAtNanos;
             this.history = history;
         }
     }

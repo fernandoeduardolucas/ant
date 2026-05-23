@@ -123,7 +123,8 @@ Ficheiros principais:
 - `ga-grid-results.csv`: contem todas as execucoes da grelha de parametros.
 - `ga-initial-solutions.csv`: contem a melhor solucao inicial do AG para cada execucao da grelha, incluindo valor, peso e indices dos itens selecionados.
 - `ga-detailed-results.csv`: contem a melhor solucao do AG por instancia. Este e o ficheiro mais adequado para a tabela final da entrega.
-- `ga-relatorio.md`: contem uma explicacao curta do AG e uma tabela resumida com os melhores resultados por instancia, incluindo o numero de threads usado.
+- `ga-relatorio.csv`: contem o CSV final de entrega com as colunas: Instancia, Solucao otima (SO), Solucao inicial, Solucao encontrada (SE), % de desvio em relacao a SO e Tempo computacional total.
+- `ga-relatorio.md`: contem uma explicacao curta do AG e uma tabela resumida com os melhores resultados por instancia, incluindo o desvio para o otimo e o tempo computacional total (wall-clock) por instancia.
 
 ## Colunas do CSV de solucoes iniciais
 
