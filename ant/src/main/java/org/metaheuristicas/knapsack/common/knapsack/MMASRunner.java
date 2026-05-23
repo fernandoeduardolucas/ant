@@ -8,8 +8,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -90,6 +88,16 @@ public final class MMASRunner {
         if (initialOutputParent != null) {
             Files.createDirectories(initialOutputParent);
         }
+        Path finalReportOutput = Path.of(readPropertyFirst(
+                p,
+                "results/ant/mmas-relatorio.csv",
+                "mmas.saida.relatorio.final",
+                "mmas.output.final.report"
+        ));
+        Path finalReportOutputParent = finalReportOutput.getParent();
+        if (finalReportOutputParent != null) {
+            Files.createDirectories(finalReportOutputParent);
+        }
 
         int totalRuns = instancias.size() * ants.size() * iters.size() * alphas.size() * betas.size()
                 * rhos.size() * qs.size() * stalls.size() * seeds.size();
@@ -139,17 +147,20 @@ public final class MMASRunner {
         escreverRelatorioSolucoesIniciais(initialOutput, instanciaPorPath);
 
         Map<String, ExperimentResult> melhorPorInstancia = new HashMap<>();
+        List<ExperimentResult> todosResultados = new ArrayList<>(totalRuns);
         try (BufferedWriter writer = Files.newBufferedWriter(output)) {
             writer.write("instance,ants,iterations,alpha,beta,rho,q,stall,seed,best_value,total_weight,elapsed_ms");
             writer.newLine();
 
-            executarExperimentosParalelos(tasks, paralelismo, writer, totalRuns, melhorPorInstancia);
+            executarExperimentosParalelos(tasks, paralelismo, writer, totalRuns, melhorPorInstancia, todosResultados);
         }
 
         escreverRelatorioDetalhado(detailedOutput, melhorPorInstancia, paralelismo);
+        escreverRelatorioFinalCsv(finalReportOutput, todosResultados, melhorPorInstancia, instanciaPorPath);
         System.out.println("Experiências concluídas. CSV: " + output);
         System.out.println("Relatório detalhado: " + detailedOutput);
         System.out.println("Relatório de soluções iniciais: " + initialOutput);
+        System.out.println("Relatório final CSV: " + finalReportOutput);
     }
 
     private static void executarExperimentosParalelos(
@@ -157,7 +168,8 @@ public final class MMASRunner {
             int paralelismo,
             BufferedWriter writer,
             int totalRuns,
-            Map<String, ExperimentResult> melhorPorInstancia
+            Map<String, ExperimentResult> melhorPorInstancia,
+            List<ExperimentResult> todosResultados
     ) throws IOException, InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(paralelismo);
         CompletionService<ExperimentResult> completion = new ExecutorCompletionService<>(executor);
@@ -177,6 +189,7 @@ public final class MMASRunner {
                 writer.write(resultado.csvLine());
                 writer.newLine();
                 atualizarMelhorPorInstancia(melhorPorInstancia, resultado);
+                todosResultados.add(resultado);
 
                 System.out.printf(
                         "[%d/%d] %s | m=%d ciclos=%d alpha=%.2f beta=%.2f rho=%.2f q=%.2f sem_melhoria=%d seed=%d => valor=%d, %d ms%n",
@@ -270,6 +283,48 @@ public final class MMASRunner {
                 writer.newLine();
             }
         }
+    }
+
+    private static void escreverRelatorioFinalCsv(
+            Path finalReportOutput,
+            List<ExperimentResult> todosResultados,
+            Map<String, ExperimentResult> melhorPorInstancia,
+            Map<String, Instancia> instanciaPorPath
+    ) throws IOException {
+        Properties otimos = carregarProperties(Path.of("ant/src/main/resources/optimal-values.properties"));
+        Map<String, Long> startByInstance = new HashMap<>();
+        Map<String, Long> endByInstance = new HashMap<>();
+        for (ExperimentResult resultado : todosResultados) {
+            startByInstance.merge(resultado.instanciaPath(), resultado.startedAtNanos(), Math::min);
+            endByInstance.merge(resultado.instanciaPath(), resultado.finishedAtNanos(), Math::max);
+        }
+
+        List<String> instanciasOrdenadas = melhorPorInstancia.keySet().stream().sorted().toList();
+        try (BufferedWriter writer = Files.newBufferedWriter(finalReportOutput)) {
+            writer.write("Instância,Solução ótima (SO),Solução inicial,Solução encontrada (SE),% de desvio em relação à SO,Tempo computacional total");
+            writer.newLine();
+            for (String instanciaPath : instanciasOrdenadas) {
+                ExperimentResult melhor = melhorPorInstancia.get(instanciaPath);
+                String nomeInstancia = Path.of(instanciaPath).getFileName().toString();
+                Long so = parseLongOrNull(otimos.getProperty(nomeInstancia));
+                Solucao inicial = construirSolucaoGulosaInicial(instanciaPorPath.get(instanciaPath));
+                String gap = so == null ? "" : String.format(Locale.US, "%.6f%%", ((so - melhor.valorTotal()) / (double) so) * 100.0);
+                double tempoTotal = (endByInstance.get(instanciaPath) - startByInstance.get(instanciaPath)) / 1_000_000_000.0;
+                writer.write(String.format(Locale.US, "%s,%s,%d,%d,%s,%.4f",
+                        nomeInstancia,
+                        so == null ? "" : so.toString(),
+                        inicial.valorTotal,
+                        melhor.valorTotal,
+                        gap,
+                        tempoTotal));
+                writer.newLine();
+            }
+        }
+    }
+
+    private static Long parseLongOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        return Long.parseLong(value.trim());
     }
 
     private static Solucao construirSolucaoGulosaInicial(Instancia instancia) {
@@ -424,7 +479,7 @@ public final class MMASRunner {
             long seed
     ) {
         ExperimentResult execute() {
-            Instant inicio = Instant.now();
+            long startedAtNanos = System.nanoTime();
 
             ACOKnapsack.ParametrosMMAS parametros = new ACOKnapsack.ParametrosMMAS(
                     ant,
@@ -442,7 +497,8 @@ public final class MMASRunner {
                     instancia.capacidade,
                     parametros
             );
-            long elapsedMs = Duration.between(inicio, Instant.now()).toMillis();
+            long finishedAtNanos = System.nanoTime();
+            long elapsedMs = (finishedAtNanos - startedAtNanos) / 1_000_000L;
             return new ExperimentResult(
                     instanciaPath,
                     instancia.capacidade,
@@ -458,7 +514,9 @@ public final class MMASRunner {
                     melhor.valorTotal,
                     melhor.pesoTotal,
                     toIndicesString(melhor.escolhidos),
-                    elapsedMs
+                    elapsedMs,
+                    startedAtNanos,
+                    finishedAtNanos
             );
         }
 
@@ -479,7 +537,9 @@ public final class MMASRunner {
             long valorTotal,
             long pesoTotal,
             String indicesEscolhidos,
-            long elapsedMs
+            long elapsedMs,
+            long startedAtNanos,
+            long finishedAtNanos
     ) {
         boolean isBetterThan(ExperimentResult other) {
             if (valorTotal != other.valorTotal) {
