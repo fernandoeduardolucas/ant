@@ -314,7 +314,7 @@ public class AcoCore {
 
     private void depositarFeromonio(Solucao melhor) {
 
-        double deposito = q * rho;
+        double deposito = q * rho * 0.1;
         for (int i = 0; i < melhor.escolhidos.length; i++) {
             if (melhor.escolhidos[i]) {
                 tau[i] += deposito;
