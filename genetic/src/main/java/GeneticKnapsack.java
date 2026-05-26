@@ -507,7 +507,8 @@ public final class GeneticKnapsack {
                     seed,
                     verbose
             );
-            double elapsedSeconds = Duration.between(start, Instant.now()).toNanos() / 1_000_000_000.0;
+            Instant end = Instant.now();
+            double elapsedSeconds = Duration.between(start, end).toNanos() / 1_000_000_000.0;
 
             Long optimal = OPTIMAL_VALUES.get(instance.name);
             Long difference = optimal == null ? null : optimal - result.value;
@@ -538,6 +539,8 @@ public final class GeneticKnapsack {
                     seed,
                     1,
                     elapsedSeconds,
+                    start.toEpochMilli(),
+                    end.toEpochMilli(),
                     result.history
             );
             results.add(row);
