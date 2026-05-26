@@ -898,7 +898,8 @@ public final class GeneticKnapsack {
                     seed,
                     false
             );
-            double elapsedSeconds = Duration.between(start, Instant.now()).toNanos() / 1_000_000_000.0;
+            Instant end = Instant.now();
+            double elapsedSeconds = Duration.between(start, end).toNanos() / 1_000_000_000.0;
 
             Long optimal = OPTIMAL_VALUES.get(instance.name);
             Long difference = optimal == null ? null : optimal - result.value;
@@ -928,6 +929,8 @@ public final class GeneticKnapsack {
                     seed,
                     parallelism,
                     elapsedSeconds,
+                    start.toEpochMilli(),
+                    end.toEpochMilli(),
                     result.history
             );
         }
@@ -1038,23 +1041,28 @@ public final class GeneticKnapsack {
     private static void updateDetailedCsv(Path path, List<ResultRow> currentResults) throws IOException {
         ensureDirectoryExists(path);
         Map<String, ResultRow> bestByInstance = new LinkedHashMap<>();
-        Map<String, Double> totalElapsedByInstance = new LinkedHashMap<>();
+        Map<String, Long> startByInstance = new LinkedHashMap<>();
+        Map<String, Long> endByInstance = new LinkedHashMap<>();
 
         for (ResultRow row : currentResults) {
             ResultRow currentBest = bestByInstance.get(row.instance);
             if (currentBest == null || isBetterSummaryRow(row, currentBest)) {
                 bestByInstance.put(row.instance, row);
             }
-            totalElapsedByInstance.merge(row.instance, row.elapsedSeconds, Double::sum);
+            startByInstance.merge(row.instance, row.startedAtEpochMs, Math::min);
+            endByInstance.merge(row.instance, row.endedAtEpochMs, Math::max);
         }
 
         List<ResultRow> orderedBest = new ArrayList<>(bestByInstance.values());
         orderedBest.sort(Comparator.comparing(row -> row.instance, GeneticKnapsack::naturalCompare));
 
         try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-            writer.write("instance,optimal_value,initial_value,best_value,gap_percent,total_weight,threads,best_configuration,stop_generation,elapsed_s,total_elapsed_s");
+            writer.write("instance,optimal_value,initial_value,best_value,gap_percent,total_weight,threads,best_configuration,stop_generation,elapsed_s,instance_started_at_epoch_ms,instance_ended_at_epoch_ms,instance_elapsed_s");
             writer.newLine();
             for (ResultRow row : orderedBest) {
+                long instanceStart = startByInstance.getOrDefault(row.instance, row.startedAtEpochMs);
+                long instanceEnd = endByInstance.getOrDefault(row.instance, row.endedAtEpochMs);
+                double instanceElapsed = (instanceEnd - instanceStart) / 1000.0;
                 writer.write(String.join(",",
                         row.instance,
                         row.optimal == null ? "" : row.optimal.toString(),
@@ -1066,7 +1074,9 @@ public final class GeneticKnapsack {
                         formatConfiguration(row),
                         Integer.toString(row.stopGeneration),
                         String.format(Locale.US, "%.4f", row.elapsedSeconds),
-                        String.format(Locale.US, "%.4f", totalElapsedByInstance.getOrDefault(row.instance, row.elapsedSeconds))
+                        Long.toString(instanceStart),
+                        Long.toString(instanceEnd),
+                        String.format(Locale.US, "%.4f", instanceElapsed)
                 ));
                 writer.newLine();
             }
@@ -1113,7 +1123,7 @@ public final class GeneticKnapsack {
                 String best = parts[3];
                 String gapStr = parts[4];
                 String threads = parts[6];
-                String tempo = parts.length > 10 ? parts[10] : parts[9];
+                String tempo = parts.length > 12 ? parts[12] : parts[9];
 
                 resultsTable.add(String.format("| %s | %s | %s | %s | %s%% | %s | %s |", inst, opt, initial, best, gapStr, threads, tempo));
 
@@ -1526,6 +1536,8 @@ public final class GeneticKnapsack {
         private final long seed;
         private final int parallelism;
         private final double elapsedSeconds;
+        private final long startedAtEpochMs;
+        private final long endedAtEpochMs;
         private final List<GenerationRecord> history;
 
         private ResultRow(
@@ -1552,6 +1564,8 @@ public final class GeneticKnapsack {
                 long seed,
                 int parallelism,
                 double elapsedSeconds,
+                long startedAtEpochMs,
+                long endedAtEpochMs,
                 List<GenerationRecord> history
         ) {
             this.instance = instance;
@@ -1577,6 +1591,8 @@ public final class GeneticKnapsack {
             this.seed = seed;
             this.parallelism = parallelism;
             this.elapsedSeconds = elapsedSeconds;
+            this.startedAtEpochMs = startedAtEpochMs;
+            this.endedAtEpochMs = endedAtEpochMs;
             this.history = history;
         }
     }
