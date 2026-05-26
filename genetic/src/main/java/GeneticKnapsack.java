@@ -1038,19 +1038,21 @@ public final class GeneticKnapsack {
     private static void updateDetailedCsv(Path path, List<ResultRow> currentResults) throws IOException {
         ensureDirectoryExists(path);
         Map<String, ResultRow> bestByInstance = new LinkedHashMap<>();
+        Map<String, Double> totalElapsedByInstance = new LinkedHashMap<>();
 
         for (ResultRow row : currentResults) {
             ResultRow currentBest = bestByInstance.get(row.instance);
             if (currentBest == null || isBetterSummaryRow(row, currentBest)) {
                 bestByInstance.put(row.instance, row);
             }
+            totalElapsedByInstance.merge(row.instance, row.elapsedSeconds, Double::sum);
         }
 
         List<ResultRow> orderedBest = new ArrayList<>(bestByInstance.values());
         orderedBest.sort(Comparator.comparing(row -> row.instance, GeneticKnapsack::naturalCompare));
 
         try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-            writer.write("instance,optimal_value,initial_value,best_value,gap_percent,total_weight,threads,best_configuration,stop_generation,elapsed_s");
+            writer.write("instance,optimal_value,initial_value,best_value,gap_percent,total_weight,threads,best_configuration,stop_generation,elapsed_s,total_elapsed_s");
             writer.newLine();
             for (ResultRow row : orderedBest) {
                 writer.write(String.join(",",
@@ -1063,7 +1065,8 @@ public final class GeneticKnapsack {
                         Integer.toString(row.parallelism),
                         formatConfiguration(row),
                         Integer.toString(row.stopGeneration),
-                        String.format(Locale.US, "%.4f", row.elapsedSeconds)
+                        String.format(Locale.US, "%.4f", row.elapsedSeconds),
+                        String.format(Locale.US, "%.4f", totalElapsedByInstance.getOrDefault(row.instance, row.elapsedSeconds))
                 ));
                 writer.newLine();
             }
@@ -1110,7 +1113,7 @@ public final class GeneticKnapsack {
                 String best = parts[3];
                 String gapStr = parts[4];
                 String threads = parts[6];
-                String tempo = parts[9];
+                String tempo = parts.length > 10 ? parts[10] : parts[9];
 
                 resultsTable.add(String.format("| %s | %s | %s | %s | %s%% | %s | %s |", inst, opt, initial, best, gapStr, threads, tempo));
 
