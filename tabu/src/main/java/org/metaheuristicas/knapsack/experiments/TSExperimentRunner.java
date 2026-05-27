@@ -73,7 +73,7 @@ public final class TSExperimentRunner {
 
         try (BufferedWriter writer = Files.newBufferedWriter(output)) {
             writer.write(
-                    "instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms,grid_wallclock_ms");
+                    "instance,iterations,tenure_flip,tenure_swap,stall,diversify,seed,best_value,total_weight,elapsed_ms,started_at_epoch_ms,ended_at_epoch_ms,grid_wallclock_ms");
             writer.newLine();
 
             int[] totalConcluido = {0}; // usar array para passar por referência
@@ -275,7 +275,8 @@ public final class TSExperimentRunner {
                     seed);
 
             Solucao melhor = solver.resolver();
-            long elapsedMs = Duration.between(inicio, Instant.now()).toMillis();
+            Instant fim = Instant.now();
+            long elapsedMs = Duration.between(inicio, fim).toMillis();
             return new ExperimentResult(
                     instanciaPath,
                     iters,
@@ -286,7 +287,9 @@ public final class TSExperimentRunner {
                     seed,
                     melhor.valorTotal,
                     melhor.pesoTotal,
-                    elapsedMs);
+                    elapsedMs,
+                    inicio.toEpochMilli(),
+                    fim.toEpochMilli());
         }
     }
 
@@ -300,11 +303,13 @@ public final class TSExperimentRunner {
             long seed,
             long valorTotal,
             long pesoTotal,
-            long elapsedMs) {
+            long elapsedMs,
+            long startedAtEpochMs,
+            long endedAtEpochMs) {
         String csvLine() {
             return String.format(
                     Locale.US,
-                    "%s,%d,%d,%d,%d,%.4f,%d,%d,%d,%d",
+                    "%s,%d,%d,%d,%d,%.4f,%d,%d,%d,%d,%d,%d",
                     instanciaPath,
                     iters,
                     tenureFlip,
@@ -314,7 +319,9 @@ public final class TSExperimentRunner {
                     seed,
                     valorTotal,
                     pesoTotal,
-                    elapsedMs);
+                    elapsedMs,
+                    startedAtEpochMs,
+                    endedAtEpochMs);
         }
     }
 }
