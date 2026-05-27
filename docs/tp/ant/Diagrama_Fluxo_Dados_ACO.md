@@ -109,6 +109,31 @@ flowchart TD
 
 ---
 
+## 3) Diagrama de Fluxo de Dados — Ant Colony Optimization (ACO)
+
+```mermaid
+flowchart TD
+    A["Entradas<br/>- Instância da mochila<br/>- Parâmetros ACO"] --> B["Inicializar Feromônio e Heurística"]
+    B --> C{"Critério de parada<br/>atingido?"}
+
+    C -- Não --> D["Construção de Soluções<br/>(uma por formiga)"]
+    D --> E["Avaliar Soluções<br/>Fitness + Viabilidade"]
+    E --> F["Atualizar Melhor Solução Global"]
+    F --> G["Evaporação de Feromônio"]
+    G --> H["Deposição de Feromônio<br/>(formigas selecionadas)"]
+    H --> C
+
+    C -- Sim --> I["Saídas<br/>- Melhor solução<br/>- Valor e peso<br/>- Iterações<br/>- Estatísticas"]
+```
+
+### Fluxos de dados principais (ACO)
+- **Instância**: itens (valor, peso) e capacidade da mochila.
+- **Parâmetros**: número de formigas, taxa de evaporação, influência de feromônio (`alpha`), influência heurística (`beta`) e máximo de iterações.
+- **Memória de busca**: matriz/vetor de feromônio, melhor solução da iteração e melhor solução global.
+- **Saídas**: melhor solução viável, histórico de convergência (opcional), tempo e métricas de execução.
+
+---
+
 ## Observações
 - Os três fluxos podem usar penalização, reparo ou ambos para tratar inviabilidade de capacidade.
 - Para reprodutibilidade experimental, registre `seed`, tempo de execução e configuração completa dos hiperparâmetros.
