@@ -68,7 +68,8 @@ public class TSReportGenerator {
                 String[] parts = line.split(",");
                 if (parts.length < 10) continue;
 
-                // parts: [0]instance, [1]iterations, [2]tenure_flip, [3]tenure_swap, [4]stall, [5]diversify, [6]seed, [7]best_value, [8]total_weight, [9]elapsed_ms, [10]grid_wallclock_ms
+                // parts (novo): [0]instance, [1]iterations, [2]tenure_flip, [3]tenure_swap, [4]stall, [5]diversify, [6]seed, [7]best_value, [8]total_weight, [9]elapsed_ms, [10]started_at_epoch_ms, [11]ended_at_epoch_ms, [12]grid_wallclock_ms
+                // parts (legado): [0]instance, [1]iterations, [2]tenure_flip, [3]tenure_swap, [4]stall, [5]diversify, [6]seed, [7]best_value, [8]total_weight, [9]elapsed_ms, [10]grid_wallclock_ms
                 String instancePath = parts[0].replace("\\", "/");
                 String[] pathParts = instancePath.split("/");
                 String instName = pathParts[pathParts.length - 1];
@@ -76,7 +77,14 @@ public class TSReportGenerator {
                 long bestValue = Long.parseLong(parts[7]);
                 long pesoTotal = Long.parseLong(parts[8]);
                 long timeMs = Long.parseLong(parts[9]);
-                long gridWallclockMs = parts.length > 10 ? Long.parseLong(parts[10]) : 0;
+                long gridWallclockMs;
+                if (parts.length > 12) {
+                    gridWallclockMs = Long.parseLong(parts[12]);
+                } else if (parts.length > 10) {
+                    gridWallclockMs = Long.parseLong(parts[10]);
+                } else {
+                    gridWallclockMs = 0;
+                }
 
                 BestResult currentBest = bestResults.get(instName);
                 if (currentBest == null) {
