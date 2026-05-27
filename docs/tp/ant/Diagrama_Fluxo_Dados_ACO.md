@@ -10,20 +10,20 @@ Este diagrama resume o fluxo de dados principal de uma implementação típica d
 
 ```mermaid
 flowchart TD
-    A["Entradas:<br/>itens, capacidade,<br/>tamPop, geracoes,<br/>taxaCruzamento, taxaMutacao,<br/>elitismo, seed"] --> B["inicializarPopulacao()<br/>gera cromossomos binários"]
-    B --> C["avaliarPopulacao()<br/>fitness + penalização/reparo"]
-    C --> D["atualizarMelhorGlobal()<br/>melhorIndividuo, melhorValor"]
+    A["Entradas:<br/>instance, populationSize,<br/>generations, crossoverRate,<br/>mutationRate, eliteSize,<br/>tournamentSize, seed"] --> B["initializePopulation()<br/>createRandomSolution()+repairSolution()"]
+    B --> C["geneticAlgorithm()<br/>best inicial (population.stream().max)"]
+    C --> D["history.add(new GenerationRecord(...))<br/>best, initialValue"]
 
-    D --> E{"geracao < maxGeracoes?"}
-    E -- Sim --> F["selecionarPais()<br/>roleta/torneio/ranking"]
-    F --> G["cruzarPais()<br/>1 ponto / 2 pontos / uniforme"]
-    G --> H["mutarFilhos()<br/>flip bit com taxaMutacao"]
-    H --> I["repararOuPenalizarFilhos()<br/>garante viabilidade"]
-    I --> J["avaliarFilhos()<br/>fitness dos descendentes"]
-    J --> K["substituirPopulacao()<br/>elitismo + sobreviventes"]
+    D --> E{"generation <= generations?"}
+    E -- Sim --> F["tournamentSelection()<br/>seleção de parent1/parent2"]
+    F --> G["twoPointCrossover()<br/>ou clone dos pais"]
+    G --> H["bitFlipMutation()<br/>em childGenes1/childGenes2"]
+    H --> I["repairSolution()<br/>gera Chromosome viável"]
+    I --> J["generationBest = population.stream().max(...)"]
+    J --> K["best = generationBest.copy()<br/>ou generationsWithoutImprovement++"]
     K --> C
 
-    E -- Não --> L["Saída:<br/>melhorGlobal<br/>vetor, valorTotal, pesoTotal,<br/>histórico por geração"]
+    E -- Não --> L["Saída:<br/>GeneticResult<br/>best, initialValue, history,<br/>stopGeneration, elapsed"]
 ```
 
 ### Dicionário rápido de dados (GA)
@@ -40,23 +40,23 @@ Este diagrama resume o fluxo de dados principal de uma implementação de Busca 
 
 ```mermaid
 flowchart TD
-    A["Entradas:<br/>itens, capacidade,<br/>iteracoesMax, tenureTabu,<br/>tamVizinhanca, aspiracao,<br/>seed"] --> B["gerarSolucaoInicial()<br/>gulosa/aleatória viável"]
-    B --> C["avaliar(solucaoAtual)<br/>valor, peso, penalidade"]
-    C --> D["melhorGlobal = solucaoAtual"]
+    A["Entradas:<br/>itens, capacidade,<br/>iteracoes, tenureFlip,<br/>tenureSwap, limiteSemMelhoria,<br/>diversifyStrength, seed"] --> B["inicializar()<br/>construirSolucaoGulosa()"]
+    B --> C["melhorEscolhidos = copy(solucaoAtual)<br/>melhorValor, melhorPeso"]
+    C --> D["resolver()"]
 
-    D --> E{"iteracao < iteracoesMax?"}
-    E -- Sim --> F["gerarVizinhanca()<br/>movimentos 1-flip/2-flip"]
-    F --> G["filtrarAdmissiveis()<br/>remove tabu sem aspiração"]
-    G --> H["selecionarMelhorVizinho()<br/>entre admissíveis"]
-    H --> I["aplicarMovimento()<br/>atualiza solucaoAtual"]
-    I --> J["atualizarListaTabu()<br/>inserção + expiração"]
-    J --> K{"solucaoAtual melhor que melhorGlobal?"}
-    K -- Sim --> L["melhorGlobal = solucaoAtual"]
-    K -- Não --> M["manter melhorGlobal"]
+    D --> E{"iter < iteracoes?"}
+    E -- Sim --> F["explorarVizinhanca(iter, usarDiversificacao)"]
+    F --> G["aplicarFlip() ou aplicarSwap()<br/>+ atualiza tabu/frequencia"]
+    G --> H{"valorAtual > melhorValor?"}
+    H -- Sim --> I["melhorEscolhidos = copy(solucaoAtual)<br/>melhorValor/melhorPeso"]
+    H -- Não --> J["semMelhoria++"]
+    I --> K{"semMelhoria >= limiteSemMelhoria?"}
+    J --> K
+    K -- Sim --> L["diversificar()<br/>reset parcial + limpeza tabu"]
+    K -- Não --> E
     L --> E
-    M --> E
 
-    E -- Não --> N["Saída:<br/>melhorGlobal<br/>vetor, valorTotal, pesoTotal,<br/>trajetória e métricas"]
+    E -- Não --> N["Saída:<br/>new Solucao(melhorEscolhidos,<br/>melhorValor, melhorPeso)"]
 ```
 
 ### Dicionário rápido de dados (Tabu)
@@ -114,15 +114,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Entradas<br/>- Instância da mochila<br/>- Parâmetros ACO"] --> B["Inicializar Feromônio e Heurística"]
+    A["Entradas<br/>- Instância da mochila<br/>- Parâmetros ACO"] --> B["inicializarEstruturas()<br/>tau + eta"]
     B --> C{"Critério de parada<br/>atingido?"}
 
-    C -- Não --> D["Construção de Soluções<br/>(uma por formiga)"]
-    D --> E["Avaliar Soluções<br/>Fitness + Viabilidade"]
-    E --> F["Atualizar Melhor Solução Global"]
-    F --> G["Evaporação de Feromônio"]
-    G --> H["Deposição de Feromônio<br/>(formigas selecionadas)"]
-    H --> C
+    C -- Não --> D["construirSolucaoProbabilistica()<br/>(uma por formiga)"]
+    D --> E["melhorarComBuscaLocal1Flip()<br/>refino local"]
+    E --> F["atualizar melhorGlobal / semMelhoria"]
+    F --> G["evaporarFeromonio()"]
+    G --> H["depositarFeromonio(melhorGlobal)"]
+    H --> J["limitarFeromonio()"]
+    J --> K{"semMelhoria >= limiteSemMelhoria?"}
+    K -- Sim --> L["reiniciarFeromonio()"]
+    K -- Não --> C
+    L --> C
 
     C -- Sim --> I["Saídas<br/>- Melhor solução<br/>- Valor e peso<br/>- Iterações<br/>- Estatísticas"]
 ```
@@ -138,4 +142,4 @@ flowchart TD
 ## Observações
 - Os três fluxos podem usar penalização, reparo ou ambos para tratar inviabilidade de capacidade.
 - Para reprodutibilidade experimental, registre `seed`, tempo de execução e configuração completa dos hiperparâmetros.
-- Os nomes de função no diagrama são descritivos e podem ser mapeados para os métodos concretos da implementação.
+- No bloco de ACO, os nomes já usam os métodos reais de `AcoCore` (sem tradução).
