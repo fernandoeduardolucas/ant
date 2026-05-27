@@ -1,65 +1,116 @@
-# Diagramas de Fluxo de Dados — Algoritmo Genético e Busca Tabu
+# Diagramas de Fluxo de Dados (DFD) — GA, Busca Tabu e ACO para Mochila 0/1
 
-Este documento descreve o fluxo de dados para duas meta-heurísticas aplicadas ao problema da mochila: **Algoritmo Genético (GA)** e **Busca Tabu (Tabu Search)**.
-
----
-
-## 1) Diagrama de Fluxo de Dados — Algoritmo Genético (GA)
-
-```mermaid
-flowchart TD
-    A[Entradas\n- Instância da mochila\n- Parâmetros GA] --> B[Leitura e Validação da Instância]
-    B --> C[Geração da População Inicial]
-    C --> D[Avaliação de Aptidão\nFitness + Penalização de Inviabilidade]
-    D --> E{Critério de parada\natingido?}
-
-    E -- Não --> F[Seleção de Pais]
-    F --> G[Cruzamento]
-    G --> H[Mutação]
-    H --> I[Reparo/Viabilização\n(opcional)]
-    I --> J[Avaliação dos Filhos]
-    J --> K[Substituição / Elitismo]
-    K --> D
-
-    E -- Sim --> L[Melhor Solução Encontrada]
-    L --> M[Saídas\n- Vetor de decisão\n- Valor total\n- Peso total\n- Estatísticas]
-```
-
-### Fluxos de dados principais (GA)
-- **Instância**: itens (valor, peso) e capacidade da mochila.
-- **Parâmetros**: tamanho da população, taxa de cruzamento, taxa de mutação, número máximo de gerações, estratégia de seleção.
-- **Estado evolutivo**: população atual, fitness por indivíduo, melhor indivíduo global, geração corrente.
-- **Saídas**: melhor solução viável, histórico de evolução (opcional), tempo de execução.
+Este documento detalha o fluxo de dados das três meta-heurísticas usadas no problema da mochila 0/1, com ênfase nas estruturas de estado e nos ciclos internos de cada algoritmo.
 
 ---
 
-## 2) Diagrama de Fluxo de Dados — Busca Tabu (Tabu Search)
+## 1) DFD — Algoritmo Genético (GA)
+
+Este diagrama resume o fluxo de dados principal de uma implementação típica de GA para mochila 0/1.
 
 ```mermaid
 flowchart TD
-    A[Entradas\n- Instância da mochila\n- Parâmetros Tabu] --> B[Leitura e Validação da Instância]
-    B --> C[Geração de Solução Inicial]
-    C --> D[Avaliação da Solução Atual]
-    D --> E[Gerar Vizinhança\n(movimentos)]
-    E --> F[Filtrar Movimentos Tabu\n+ Regra de Aspiração]
-    F --> G[Selecionar Melhor Vizinho Admissível]
-    G --> H[Atualizar Solução Atual]
-    H --> I[Atualizar Lista Tabu\n(tenure/expiração)]
-    I --> J[Atualizar Melhor Solução Global]
-    J --> K{Critério de parada\natingido?}
+    A["Entradas:<br/>itens, capacidade,<br/>tamPop, geracoes,<br/>taxaCruzamento, taxaMutacao,<br/>elitismo, seed"] --> B["inicializarPopulacao()<br/>gera cromossomos binários"]
+    B --> C["avaliarPopulacao()<br/>fitness + penalização/reparo"]
+    C --> D["atualizarMelhorGlobal()<br/>melhorIndividuo, melhorValor"]
 
-    K -- Não --> E
-    K -- Sim --> L[Saídas\n- Melhor solução\n- Valor e peso\n- Iterações\n- Estatísticas]
+    D --> E{"geracao < maxGeracoes?"}
+    E -- Sim --> F["selecionarPais()<br/>roleta/torneio/ranking"]
+    F --> G["cruzarPais()<br/>1 ponto / 2 pontos / uniforme"]
+    G --> H["mutarFilhos()<br/>flip bit com taxaMutacao"]
+    H --> I["repararOuPenalizarFilhos()<br/>garante viabilidade"]
+    I --> J["avaliarFilhos()<br/>fitness dos descendentes"]
+    J --> K["substituirPopulacao()<br/>elitismo + sobreviventes"]
+    K --> C
+
+    E -- Não --> L["Saída:<br/>melhorGlobal<br/>vetor, valorTotal, pesoTotal,<br/>histórico por geração"]
 ```
 
-### Fluxos de dados principais (Tabu)
-- **Instância**: itens e capacidade da mochila.
-- **Parâmetros**: tenure tabu, número máximo de iterações, tamanho da vizinhança, política de aspiração.
-- **Memória de busca**: lista tabu (movimentos proibidos e validade), solução atual, melhor solução global.
-- **Saídas**: melhor solução viável, trajetória da busca (opcional), métricas de convergência.
+### Dicionário rápido de dados (GA)
+- `populacao`: conjunto de cromossomos da geração corrente.
+- `fitness[i]`: aptidão do indivíduo `i` após penalização/reparo.
+- `melhorGlobal`: melhor indivíduo em toda a execução.
+- `geracao`: contador do ciclo evolutivo.
+
+---
+
+## 2) DFD — Busca Tabu (Tabu Search)
+
+Este diagrama resume o fluxo de dados principal de uma implementação de Busca Tabu para mochila 0/1.
+
+```mermaid
+flowchart TD
+    A["Entradas:<br/>itens, capacidade,<br/>iteracoesMax, tenureTabu,<br/>tamVizinhanca, aspiracao,<br/>seed"] --> B["gerarSolucaoInicial()<br/>gulosa/aleatória viável"]
+    B --> C["avaliar(solucaoAtual)<br/>valor, peso, penalidade"]
+    C --> D["melhorGlobal = solucaoAtual"]
+
+    D --> E{"iteracao < iteracoesMax?"}
+    E -- Sim --> F["gerarVizinhanca()<br/>movimentos 1-flip/2-flip"]
+    F --> G["filtrarAdmissiveis()<br/>remove tabu sem aspiração"]
+    G --> H["selecionarMelhorVizinho()<br/>entre admissíveis"]
+    H --> I["aplicarMovimento()<br/>atualiza solucaoAtual"]
+    I --> J["atualizarListaTabu()<br/>inserção + expiração"]
+    J --> K{"solucaoAtual melhor que melhorGlobal?"}
+    K -- Sim --> L["melhorGlobal = solucaoAtual"]
+    K -- Não --> M["manter melhorGlobal"]
+    L --> E
+    M --> E
+
+    E -- Não --> N["Saída:<br/>melhorGlobal<br/>vetor, valorTotal, pesoTotal,<br/>trajetória e métricas"]
+```
+
+### Dicionário rápido de dados (Tabu)
+- `solucaoAtual`: solução no ponto corrente da busca.
+- `listaTabu`: memória de curto prazo com movimentos proibidos e validade.
+- `melhorGlobal`: melhor solução observada durante toda a execução.
+- `iteracao`: contador principal da busca.
+
+---
+
+## 3) DFD — Ant Colony Optimization (ACO)
+
+Este diagrama resume o fluxo de dados principal do `AcoCore` para mochila 0/1.
+
+```mermaid
+flowchart TD
+    A["Entradas:<br/>itens, capacidade,<br/>numFormigas, iteracoes,<br/>alpha, beta, rho, q, seed"] --> B["inicializarEstruturas()<br/>gera eta e tau inicial"]
+    B --> C["construirSolucaoGulosaInicial()<br/>gera melhorGlobal inicial"]
+    C --> D["atualizarLimitesFeromonio(melhorGlobal)<br/>define tauMin/tauMax"]
+
+    D --> E{{"Loop de iterações"}}
+    E --> F{{"Loop de formigas"}}
+    F --> G["construirSolucaoProbabilistica()<br/>usa tau, eta, alpha, beta"]
+    G --> H["melhorarComBuscaLocal1Flip()"]
+    H --> I["atualizar melhorIteracao"]
+    I --> F
+
+    F --> J{"melhorIteracao > melhorGlobal?"}
+    J -- Sim --> K["melhorGlobal = melhorIteracao<br/>semMelhoria = 0<br/>atualiza tauMin/tauMax"]
+    J -- Não --> L["semMelhoria++"]
+
+    K --> M["evaporarFeromonio()<br/>tau = tau*(1-rho)"]
+    L --> M
+    M --> N["depositarFeromonio(melhorGlobal)<br/>tau[i]+=q/valor"]
+    N --> O["limitarFeromonio()<br/>clamp em tauMin/tauMax"]
+    O --> P{"semMelhoria >= limite?"}
+    P -- Sim --> Q["reiniciarFeromonio()<br/>tau = tauMax"]
+    P -- Não --> E
+    Q --> E
+
+    E --> R["Saída: melhorGlobal<br/>escolhidos, valorTotal, pesoTotal"]
+```
+
+### Dicionário rápido de dados (ACO)
+- `tau[i]`: nível de feromônio por item (memória coletiva).
+- `eta[i]`: heurística local por item (ex.: valor/peso normalizado).
+- `melhorIteracao`: melhor solução encontrada na iteração atual.
+- `melhorGlobal`: melhor solução encontrada em toda a execução.
+- `construirSolucaoGulosaInicial()`: constrói uma solução viável inicial usada para definir o primeiro `melhorGlobal`.
+- `semMelhoria`: contador de estagnação para reinicialização de feromônio.
 
 ---
 
 ## Observações
-- Ambos os fluxos podem ser implementados com controle de inviabilidade por penalização ou reparo.
-- Para experimentos reproduzíveis, recomenda-se registrar **seed aleatória**, tempo e configuração completa dos parâmetros.
+- Os três fluxos podem usar penalização, reparo ou ambos para tratar inviabilidade de capacidade.
+- Para reprodutibilidade experimental, registre `seed`, tempo de execução e configuração completa dos hiperparâmetros.
+- Os nomes de função no diagrama são descritivos e podem ser mapeados para os métodos concretos da implementação.
